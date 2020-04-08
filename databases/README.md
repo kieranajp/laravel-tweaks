@@ -12,7 +12,11 @@ If your Redis server requires a TLS connection (denoted by either `tls://` or `r
 
 ### Solution
 
-Luckily, you can get round this very simply by overriding the scheme that's passed to the underlying Redis driver. Laravel doesn't allow overriding this by default, but if you're using [Predis]() it [passes the whole array](https://github.com/laravel/framework/blob/7.x/src/Illuminate/Redis/Connectors/PredisConnector.php#L29).
+Luckily, you can get round this very simply by overriding the scheme that's passed to the underlying Redis driver. Laravel doesn't allow overriding this by default, but there're workarounds.
+
+#### Using Predis
+
+If you're using [Predis](https://github.com/nrk/predis), Laravel [passes the whole config array](https://github.com/laravel/framework/blob/7.x/src/Illuminate/Redis/Connectors/PredisConnector.php#L29) down, so with a little tweaking we can instruct Predis to connect with TLS.
 
 Here's how Predis accepts connection details:
 
@@ -24,7 +28,7 @@ $client = new Predis\Client([
 ]);
 ```
 
-PhpRedis accepts it as a DSN, and Laravel doesn't seem to parse the scheme for that unfortunately, so you're shit out of luck with that driver. Switching to Predis requires installing it (`composer require predis/predis`), and changing the `REDIS_CLIENT` environment variable to `predis`. Then you can add the scheme parameter to your config:
+So you can add the scheme parameter to your config:
 
 ```php
 // config/database.php
@@ -53,3 +57,13 @@ return [
 ```
 
 You can then set the `REDIS_SCHEME` environment variable to `tls` or `rediss` to (hopefully) successfully connect to your secure Redis instance!
+
+#### Using PhpRedis
+
+[PhpRedis](https://github.com/phpredis/phpredis) accepts the connection string slighly differently, so we can't modify the config array and expect it to work. The parameters we want it to accept look something like this:
+
+```php
+$redis->pconnect('tls://127.0.0.1', 6379);
+```
+
+Laravel actually [spreads part of the config array into this method](https://github.com/laravel/framework/blob/7.x/src/Illuminate/Redis/Connectors/PhpRedisConnector.php#L118-L130) - so we can actually get this working with a well-formed `REDIS_HOST` environment variable. Setting this to have the `tls://` or `rediss://` prefix seems to do the job!
